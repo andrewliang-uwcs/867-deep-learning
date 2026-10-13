@@ -16,7 +16,7 @@ from simulation_parameters import *
 from lib.scene_pool import SimConfig, load_scenes, num_scenes, train_steps
 from lib.identifiability import ObsModel, calibration_error, translation_direction
 
-file_name = 'pool_SSL'
+file_name = f'pool_SSL_th{theta_mean_max_deg:g}'
 cfg = {'smoke': dict(n_labels=8,   sl_steps=5,    ul_steps=5),
        'cpu':   dict(n_labels=50,  sl_steps=1000, ul_steps=1000),
        'paper': dict(n_labels=500, sl_steps=int(1e4), ul_steps=int(7.5e4))}[run_mode]
@@ -26,7 +26,7 @@ sim = SimConfig.from_globals(globals())
 m = ObsModel(sim)
 gauge = translation_direction(m).reshape(-1, 1)      # unfixable direction, ignored in the error
 
-path = os.path.join('data', f'scenes_{run_mode}_train.pt')
+path = os.path.join('data', f'scenes_{pool_tag}_train.pt')
 if not os.path.exists(path):
     sys.exit(f'{path} not found: run generate_scenes.py first')
 pool, meta = load_scenes(path, device)

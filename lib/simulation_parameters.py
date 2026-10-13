@@ -53,8 +53,10 @@ ant_d = torch.tensor([[0.0030255569, 0.0027658057, 0.0027241893, 0.0027152568, 0
             0.0025738038, 0.0025952985, 0.0026659546, 0.0026948208, 0.0027010187,
             0.0027233388, 0.0027394753, 0.0027674662, 0.0030494009]], dtype=torch.float32, device = device).T
 #We allow for training of random [theta_min, theta_max] and [range_min, range_max]
-theta_mean_min = torch.tensor(-60*np.pi/180, dtype=torch.float32, device=device)
-theta_mean_max = torch.tensor(60*np.pi/180, dtype=torch.float32, device=device)
+theta_mean_max_deg = 10                                                     #Sector centres drawn in [-theta_mean_max_deg, theta_mean_max_deg] deg (paper: 60)
+theta_mean_min = torch.tensor(-theta_mean_max_deg*np.pi/180, dtype=torch.float32, device=device)
+theta_mean_max = torch.tensor(theta_mean_max_deg*np.pi/180, dtype=torch.float32, device=device)
+pool_tag       = f'{run_mode}_th{theta_mean_max_deg:g}'                     #Names stored scene pools by run size and angular coverage
 span_min_theta = torch.tensor(10*np.pi/180, dtype=torch.float32, device=device)
 span_max_theta = torch.tensor(20*np.pi/180, dtype=torch.float32, device=device)
 range_mean_min = (range_min_glob + range_max_glob)/2.0                      #This fixes the target range sector to [range_min_glob, range_max_glob]

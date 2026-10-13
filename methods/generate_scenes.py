@@ -6,7 +6,7 @@ Run from methods/ (same as the other scripts):
     $env:PYTHONPATH = ".."
     python generate_scenes.py
 
-Writes data/scenes_<run_mode>_<split>.pt. Pool sizes follow run_mode in
+Writes data/scenes_<run_mode>_th<theta_mean_max_deg>_<split>.pt. Pool sizes follow run_mode in
 lib/simulation_parameters.py. Scenes use the same training distribution as trainNetwork
 (random angular sector of 10-20 deg centred in [-60, 60] deg, range in [0, 200] m).
 All splits contain target-present scenes only (proposal Appendix A, Step 1); the
@@ -32,8 +32,8 @@ for split, n in pool_sizes.items():
     scenes = draw_scenes(n, sim, theta_mean_min, theta_mean_max, span_min_theta, span_max_theta,
                          range_mean_min, range_mean_max, span_min_range, span_max_range,
                          p_present=1.0, seed=seeds[split])
-    path = os.path.join(data_dir, f'scenes_{run_mode}_{split}.pt')
-    save_scenes(scenes, path, meta=dict(run_mode=run_mode, split=split, n=n,
+    path = os.path.join(data_dir, f'scenes_{pool_tag}_{split}.pt')
+    save_scenes(scenes, path, meta=dict(run_mode=run_mode, theta_mean_max_deg=float(theta_mean_max_deg), split=split, n=n,
                                         seed=seeds[split], p_present=1.0))
     th = scenes['theta'] * 180 / np.pi
     print(f'{split:5s}: {num_scenes(scenes)} scenes -> {path} '
