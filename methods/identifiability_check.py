@@ -96,7 +96,7 @@ report('4b translation: shifted array = same measurement times a phase (absorbed
 
 # ---------------------------------------------------------------- 5. pool information spectrum
 n_analysis = {'smoke': 32, 'cpu': 300, 'paper': 1000}[run_mode]
-path = os.path.join('data', f'scenes_{run_mode}_train.pt')
+path = os.path.join('data', f'scenes_{pool_tag}_train.pt')
 if os.path.exists(path):
     pool, _ = load_scenes(path, device)
     print(f'\nUsing stored pool {path}')
@@ -143,6 +143,9 @@ print(f'Gauge (unfixable) dimension found: {null.shape[1]}  '
       f'(overlap with translation direction: '
       f'{float((null.T @ v_trans).norm()) if null.shape[1] else 0.0:.3f})')
 lam_max = float(torch.linalg.eigvalsh(FL_tot)[-1])
+print(f'Absolute scale (compare across coverage settings): largest eig of sum F_L {lam_max:.3e}; '
+      f'scale info F_U(prior) {rayleigh(FU_tot, v_scale):.3e}, F_L {rayleigh(FL_tot, v_scale):.3e}; '
+      f'mean sin^2(theta_hat) {float(est["theta"].double().sin().pow(2).mean()):.3f}')
 print('Rayleigh quotients / largest eigenvalue of sum F_L:')
 for name, v in [('scale', v_scale), ('translation', v_trans)]:
     print(f'  {name:11s}: F_U(no prior) {rayleigh(FUnp_tot, v) / lam_max:.2e}   '
@@ -169,7 +172,7 @@ for rule in ('weak', 'full'):
 print(f'Calibration error of current network.d (gauge removed): '
       f'{calibration_error(network.d, ant_d, m, null):.4f} (units of lambda/2)')
 
-out_file = result_path('identifiability')
+out_file = result_path(f'identifiability_th{theta_mean_max_deg:g}')
 print(f'Saving results to {out_file}')
 np.savez(out_file, check_names=np.array(list(results.keys())), check_values=np.array(list(results.values())),
          eig_FU_noprior=torch.linalg.eigvalsh(FUnp_tot).numpy(),
