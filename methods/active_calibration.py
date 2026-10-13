@@ -53,6 +53,9 @@ AL = {'smoke': dict(n_init=4,  per_round=2,  budget=8,   sl_steps=3,    ul_steps
 lr_scale = 10     # multiplies lr_super / lr_unsuper; raise it if calibration error barely moves
 
 sim = SimConfig.from_globals(globals())
+# Private copy of the starting spacing. On CPU, PertNet(assumed_d.cpu()) shares memory with
+# assumed_d, so training would overwrite it and the next run would start where the last ended.
+d_init = assumed_d.detach().cpu().clone()
 m = ObsModel(sim)
 gauge = translation_direction(m).reshape(-1, 1)          # unfixable direction (see identifiability_check)
 Q = complement_basis(gauge, K)
@@ -70,47 +73,59 @@ print(f'Pool {pool_path}: {N} scenes; eval {eval_path}: {num_scenes(eval_pool)} 
 
 
 @torch.no_grad()
-def evaluate(net, scenes, batch=64):
-    """Position RMSE [m] and angle RMSE [deg] of the receiver on held-out target-present scenes."""
-    se_pos, se_ang, n = 0.0, 0.0, 0
+def evaluate(net, scenes, batch=64, eval_seed=12345):
+    """Position RMSE [m], angle RMSE [deg] and median position error [m] of the receiver on
+    held-out target-present scenes. Uses the same noise/symbols every call (fixed seed), so
+    differences between rounds come from the model, not from re-drawn noise. The global RNG
+    state is restored afterwards so training randomness is unaffected."""
+    rng_state = torch.get_rng_state()
+    torch.manual_seed(eval_seed)
+    se_pos, se_ang, n, errs = 0.0, 0.0, 0, []
     for start in range(0, num_scenes(scenes), batch):
         sc = subset(scenes, list(range(start, min(start + batch, num_scenes(scenes)))))
         Y, sym, _, A, b_angle = synthesize(sc, net.d, sim)
         _, th, r = run_receiver(net.d, sc, sim, Y, sym, A, b_angle)
         x_e, y_e = r * torch.cos(th), r * torch.sin(th)
         x_t, y_t = sc['range'] * torch.cos(sc['theta']), sc['range'] * torch.sin(sc['theta'])
-        se_pos += float(((x_e - x_t) ** 2 + (y_e - y_t) ** 2).sum())
+        e2 = (x_e - x_t) ** 2 + (y_e - y_t) ** 2
+        errs.append(e2.reshape(-1).sqrt().cpu())
+        se_pos += float(e2.sum())
         se_ang += float(((th - sc['theta']) ** 2).sum())
         n += th.shape[0]
-    return (se_pos / n) ** 0.5, (se_ang / n) ** 0.5 * 180 / np.pi
+    torch.set_rng_state(rng_state)
+    return (se_pos / n) ** 0.5, (se_ang / n) ** 0.5 * 180 / np.pi, float(torch.cat(errs).median())
 
 
 def run(rule, seed):
     torch.manual_seed(seed)                               # noise / symbols during training
     g_train = torch.Generator().manual_seed(seed)         # mini-batch picks
     g_init = torch.Generator().manual_seed(10_000 + seed) # L0: identical for every rule
-    net = PertNet(assumed_d.cpu()).to(device)
+    net = PertNet(d_init.clone()).to(device)
+    assert torch.equal(net.d.detach().cpu(), d_init), 'every run must start from the same spacing'
     opt_sl = torch.optim.Adam(net.parameters(), lr=lr_super * lr_scale)
     opt_ul = torch.optim.Adam(net.parameters(), lr=lr_unsuper * lr_scale, maximize=True)
 
     labelled = torch.randperm(N, generator=g_init)[:AL['n_init']].tolist()
-    log = dict(n_labels=[], calib_err=[], rmse_pos=[], rmse_angle_deg=[], acq_time=[],
+    log = dict(n_labels=[], calib_err=[], calib_err_after_sl=[], median_pos_err=[], rmse_pos=[], rmse_angle_deg=[], acq_time=[],
                train_time=[], learned_d=[], chosen=[], chosen_round=[], chosen_true_theta=[])
 
     def train_and_log(acq_time):
         t0 = time.perf_counter()
         train_steps(net, pool, labelled, AL['sl_steps'], AL['batch'], opt_sl, sim,
                     supervised=True, generator=g_train)
+        log['calib_err_after_sl'].append(calibration_error(net.d, ant_d, m, gauge))
         train_steps(net, pool, torch.arange(N), AL['ul_steps'], AL['batch'], opt_ul, sim,
                     supervised=False, generator=g_train)
         t_train = time.perf_counter() - t0
-        rmse_pos, rmse_ang = evaluate(net, eval_pool)
+        rmse_pos, rmse_ang, med_pos = evaluate(net, eval_pool)
+        log['median_pos_err'].append(med_pos)
         log['n_labels'].append(len(labelled)); log['acq_time'].append(acq_time)
         log['train_time'].append(t_train)
         log['calib_err'].append(calibration_error(net.d, ant_d, m, gauge))
         log['rmse_pos'].append(rmse_pos); log['rmse_angle_deg'].append(rmse_ang)
         log['learned_d'].append(net.d.detach().cpu().numpy().reshape(-1))
-        print(f'  [{rule} s{seed}] labels {len(labelled):4d}  calib err {log["calib_err"][-1]:.4f}  '
+        print(f'  [{rule} s{seed}] labels {len(labelled):4d}  calib err {log["calib_err"][-1]:.4f} '
+              f'(after SL {log["calib_err_after_sl"][-1]:.4f})  median pos err {med_pos:6.3f} m  '
               f'pos RMSE {rmse_pos:7.3f} m  angle RMSE {rmse_ang:6.3f} deg  '
               f'(acq {acq_time:5.1f}s, train {t_train:5.1f}s)')
 
