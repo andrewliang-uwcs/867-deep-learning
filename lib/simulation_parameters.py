@@ -13,6 +13,8 @@ torch.manual_seed(10)
 np.random.seed(10)
 
 ######## Simulation Parameters ########
+#Run size: 'smoke' (~1 min, just checks the code runs), 'cpu' (a few hours on a CPU), 'paper' (full settings, GPU needed)
+run_mode       = 'cpu'
 save_path      = 'results/'                                                 #Directory to save results
 device         = 'cuda' if torch.cuda.is_available() else 'cpu'
 impaired_flag  = True                                                       #True to include impairments, False otherwise
@@ -26,7 +28,7 @@ SNR_comm_dB    = torch.tensor(20, dtype=torch.float32, device=device)       #Sig
 msg_card       = 4                                                          #Comm. constellation size
 numTaps        = 5                                                          #Number of taps in the communication4 channel
 target_pfa     = 1e-2                                                       #Target false alarm prob. for ISAC
-delta_pfa      = 1e-4                                                       #Max deviation from target_pfa
+delta_pfa      = {'smoke': 5e-3, 'cpu': 1e-3, 'paper': 1e-4}[run_mode]  #Max deviation from target_pfa (paper: 1e-4)
 range_min_glob = torch.tensor(0, dtype=torch.float32, device=device)        #Minimum considered range of the target
 range_max_glob = torch.tensor(200, dtype=torch.float32, device=device)      #Maximum considered range of the target
 #Antenna spacing
@@ -61,14 +63,19 @@ span_min_range = range_max_glob - range_min_glob
 span_max_range = range_max_glob - range_min_glob
 Ngrid_angle    = 720                #Number of points in the oversampled grid of angles
 Ngrid_range    = 200                #Number of points in the oversampled grid of ranges
-batch_size     = 3000
+batch_size     = {'smoke': 32, 'cpu': 256, 'paper': 3000}[run_mode]
 #List of epochs to evaluate the models while learning
-epoch_test_list     = [1, 200, 400, 600, 700, 800, 1000, 1500, 2000, 2500, 3000, 3500,
-                        5000, 6500, 8000, 1e4, 1.25e4, 1.5e4, 2e4, 2.5e4, 3e4,
-                        3.5e4, 4e4, 4.5e4, 5e4, 5.5e4, 6e4, 6.5e4, 7e4, 7.5e4,
-                        8e4, 8.1e4, 8.2e4, 8.3e4, 8.4e4, 8.42e4, 8.5e4]
+if run_mode == 'smoke':
+    epoch_test_list = [1, 20]
+elif run_mode == 'cpu':
+    epoch_test_list = [1, 250, 500, 1000, 1500, 2000]
+else:
+    epoch_test_list = [1, 200, 400, 600, 700, 800, 1000, 1500, 2000, 2500, 3000, 3500,
+                       5000, 6500, 8000, 1e4, 1.25e4, 1.5e4, 2e4, 2.5e4, 3e4,
+                       3.5e4, 4e4, 4.5e4, 5e4, 5.5e4, 6e4, 6.5e4, 7e4, 7.5e4,
+                       8e4, 8.1e4, 8.2e4, 8.3e4, 8.4e4, 8.42e4, 8.5e4]
 #Testing values after training
-nTestSamples        = int(1.2e6)         #This value will be slightly changed later to be a multiple of batch_size
+nTestSamples        = {'smoke': 640, 'cpu': int(1e4), 'paper': int(1.2e6)}[run_mode]  #This value will be slightly changed later to be a multiple of batch_size
 theta_min_sens_test = torch.tensor(-40*np.pi/180, dtype=torch.float32, device=device)
 theta_max_sens_test = torch.tensor(-20*np.pi/180, dtype=torch.float32, device=device)
 range_min_sens_test = torch.tensor(0, dtype=torch.float32, device=device)
@@ -76,7 +83,7 @@ range_max_sens_test = torch.tensor(200, dtype=torch.float32, device=device)
 theta_min_comm_test = torch.tensor(30*np.pi/180, dtype=torch.float32, device=device)
 theta_max_comm_test = torch.tensor(50*np.pi/180, dtype=torch.float32, device=device)
 #ISAC Trade-off beam parameters
-ISAC_grid_pts  = 8                                                          #Number of points for the ISAC trade-off beam
+ISAC_grid_pts  = {'smoke': 2, 'cpu': 4, 'paper': 8}[run_mode]  #Number of points for the ISAC trade-off beam
 rho = torch.linspace(0,1,ISAC_grid_pts, device=device)
 phi = torch.linspace(0, 2*np.pi*(ISAC_grid_pts-1)/ISAC_grid_pts, ISAC_grid_pts, device=device) #Avoid repeating 0 and 2*pi
 
@@ -106,20 +113,20 @@ nTestSamples   = numTestIt*batch_size                                           
 thresholds_pfa  = torch.linspace(463, 462, 3, device=device)                      #List of thresholds for sensing testing and a fix Pfa
 
 ######## NN-related parameters ########
+train_it         = {'smoke': 20, 'cpu': int(2e3), 'paper': int(8.5e4)}[run_mode]  #Number of training iterations
 network          = PertNet(assumed_d.cpu()).to(device)
 #Define different learning rates and optimizers for the case of sequential training
 lr_super         = 4e-7
 optimizerSuper   = torch.optim.Adam(list(network.parameters()), lr = lr_super)
 scheduler_flag   = True                                                           #Flag to use scheduler if True or skip it if False
 gamma_sch        = 0.1
-scheduler_super  = torch.optim.lr_scheduler.StepLR(optimizerSuper, step_size=50000,
-                                                   gamma=gamma_sch, verbose=False)
+scheduler_super  = torch.optim.lr_scheduler.StepLR(optimizerSuper, step_size=max(1, int(train_it*50000/85000)),   #Paper: 50000 (of 8.5e4 its)
+                                                   gamma=gamma_sch)
 lr_unsuper       = 5e-7
 optimizerUnsuper = torch.optim.Adam(list(network.parameters()), lr = lr_unsuper,
                                     maximize=True)
 
 criterionLoss    = nn.MSELoss()
-train_it         = int(8.5e4)           #Number of training iterations
 train_it_super   = train_it
 train_it_unsuper = train_it-train_it_super
 
