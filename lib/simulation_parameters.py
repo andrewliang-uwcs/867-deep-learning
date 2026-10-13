@@ -14,7 +14,7 @@ np.random.seed(10)
 
 ######## Simulation Parameters ########
 #Run size: 'smoke' (~1 min, just checks the code runs), 'cpu' (a few hours on a CPU), 'paper' (full settings, GPU needed)
-run_mode       = 'smoke'
+run_mode       = 'cpu'
 save_path      = 'results/'                                                 #Directory to save results
 device         = 'cuda' if torch.cuda.is_available() else 'cpu'
 impaired_flag  = True                                                       #True to include impairments, False otherwise

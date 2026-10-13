@@ -101,7 +101,7 @@ def save_scenes(scenes, path, meta=None):
 
 def load_scenes(path, device='cpu'):
     """Load a pool saved by save_scenes. Returns (scenes, meta)."""
-    obj = torch.load(path, map_location=device)
+    obj = torch.load(path, map_location=device, weights_only=True)
     return {k: v.to(device) for k, v in obj['scenes'].items()}, obj.get('meta', {})
 
 
