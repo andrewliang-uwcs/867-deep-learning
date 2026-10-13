@@ -5,8 +5,8 @@ import numpy as np
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
-from functions import *
-from learnable_parameters import *
+from lib.functions import *
+from lib.learnable_parameters import *
 
 #Fix seed for reproducibility
 torch.manual_seed(10)
