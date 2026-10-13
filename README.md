@@ -8,3 +8,5 @@ J. M. Mateos-Ramos, B. Chatelier, C. Häger, M. F. Keskin, L. L. Magoarou, and H
 The initial source code is pulled from the github repository for that paper, which can be found here: https://github.com/josemateosramos/SSLISAC
 
 The team members of this project are Andrew Liang, Mohammad Al-Shammeri, and Muneef Mohammed.
+
+run comparisons from: python summarize_active.py --since 20261013-165331
