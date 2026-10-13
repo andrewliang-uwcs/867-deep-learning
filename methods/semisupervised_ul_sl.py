@@ -79,7 +79,9 @@ plt.legend()
 
 """# Save results"""
 
-np.savez(save_path + file_name, \
+out_file = result_path(file_name)
+print(f'Saving results to {out_file}')
+np.savez(out_file, \
         pd_inter = pd_inter, pfa_inter = pfa_inter, \
         rmse_angle_inter = rmse_angle_inter, \
         rmse_range_inter = rmse_range_inter, \

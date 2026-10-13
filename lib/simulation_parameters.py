@@ -112,6 +112,14 @@ numTestIt      = nTestSamples // batch_size                                     
 nTestSamples   = numTestIt*batch_size                                             #Recompute test samples to be a multiple of batch_Size
 thresholds_pfa  = torch.linspace(463, 462, 3, device=device)                      #List of thresholds for sensing testing and a fix Pfa
 
+######## Saving results ########
+import os, datetime
+run_timestamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')   #Fixed once per run, so all files of a run share it
+def result_path(file_name):
+    '''Return a unique path results/<file_name>_<run_mode>_<timestamp>.npz, creating the folder if needed.'''
+    os.makedirs(save_path, exist_ok=True)
+    return os.path.join(save_path, f'{file_name}_{run_mode}_{run_timestamp}.npz')
+
 ######## NN-related parameters ########
 train_it         = {'smoke': 20, 'cpu': int(2e3), 'paper': int(8.5e4)}[run_mode]  #Number of training iterations
 network          = PertNet(assumed_d.cpu()).to(device)
