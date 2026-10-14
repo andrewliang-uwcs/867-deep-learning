@@ -138,7 +138,10 @@ def current_estimates(network, scenes, sim, batch_size=64):
 def pool_information(network, scenes, sim, m=None, batch_size=64, use_theta_prior=True,
                      estimates=None, print_every=0):
     """Per-observation F_U and dF for every scene in `scenes`, evaluated at the current
-    network.d and the receiver's estimates. Returns (F_U (N,K,K), dF (N,K,K), estimates)."""
+    network.d and the receiver's estimates. Returns (F_U (N,K,K), dF (N,K,K), estimates).
+    estimates also gets 'pos_crb' (N,): Cramer-Rao bound on the target position [m^2] given
+    the current d (alpha unknown) -- the target-prediction uncertainty used by the
+    'uncertainty' acquisition baseline."""
     m = m or ObsModel(sim)
     est = estimates if estimates is not None else current_estimates(network, scenes, sim, batch_size)
     d_hat = network.d.detach().cpu().double().reshape(-1)
@@ -146,15 +149,29 @@ def pool_information(network, scenes, sim, m=None, batch_size=64, use_theta_prio
     N = num_scenes(scenes)
     F_U = torch.empty(N, m.K, m.K, dtype=torch.float64)
     dF = torch.empty_like(F_U)
+    pos_crb = torch.empty(N, dtype=torch.float64)
     for i in range(N):
         p = pack_params(d_hat, est['theta'][i], est['range'][i], est['alpha'][i], m)
         I = fisher_obs(p, est['precoder'][i].to(torch.complex128),
                        est['symbols'][i].to(torch.complex128), m)
         prior = 12.0 / float(span[i]) ** 2 if use_theta_prior else 0.0
         F_U[i], _, dF[i] = info_blocks(I, m, prior)
+        pos_crb[i] = position_crb(I, float(est['theta'][i]), float(est['range'][i]), m)
         if print_every and (i + 1) % print_every == 0:
             print(f'  information for {i + 1}/{N} observations')
+    est['pos_crb'] = pos_crb
     return F_U, dF, est
+
+
+def position_crb(I, theta, rng, m, ridge=1e-12):
+    """CRB on the (x, y) target position [m^2] from one observation's Fisher matrix I,
+    treating d as known and alpha as nuisance."""
+    F = schur(I, [m.TH, m.R], [m.AR, m.AI])
+    F = F + ridge * torch.trace(F) * torch.eye(2, dtype=F.dtype)
+    C = torch.linalg.inv(F)                       # covariance of (theta, r / r_scale)
+    Jp = torch.tensor([[-rng * math.sin(theta), m.r_scale * math.cos(theta)],
+                       [rng * math.cos(theta),  m.r_scale * math.sin(theta)]], dtype=F.dtype)
+    return float(torch.trace(Jp @ C @ Jp.T))
 
 
 # ----------------------------------------------------------------------------------------
