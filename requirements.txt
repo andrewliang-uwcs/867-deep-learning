@@ -1,0 +1,4 @@
+# Python 3.10, CPU only. Install with: pip install -r requirements.txt
+torch==2.5.1
+numpy==1.26.4
+matplotlib==3.9.2

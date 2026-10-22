@@ -2,11 +2,10 @@
 """
 Generate and store fixed pools of simulated ISAC sensing scenes.
 
-Run from methods/ (same as the other scripts):
-    $env:PYTHONPATH = ".."
-    python generate_scenes.py
+Run from the repository root:
+    python methods/generate_scenes.py
 
-Writes data/scenes_<run_mode>_th<theta_mean_max_deg>_<split>.pt. Pool sizes follow run_mode in
+Writes methods/data/scenes_<run_mode>_th<theta_mean_max_deg>_<split>.pt. Pool sizes follow run_mode in
 lib/simulation_parameters.py. Scenes use the same training distribution as trainNetwork
 (random angular sector of 10-20 deg centred in [-60, 60] deg, range in [0, 200] m).
 All splits contain target-present scenes only (proposal Appendix A, Step 1); the
@@ -15,11 +14,15 @@ sensing test sets are still drawn by the original test functions.
 import os
 import sys
 # caution: path[0] is reserved for script path (or '' in REPL)
-sys.path.insert(1, '../lib/')
+# Put the repository root and lib/ on the import path relative to this file, so the
+# script runs from any working directory without setting PYTHONPATH.
+import os
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path[1:1] = [REPO_ROOT, os.path.join(REPO_ROOT, 'lib')]
 from simulation_parameters import *
 from lib.scene_pool import SimConfig, draw_scenes, save_scenes, num_scenes
 
-data_dir = 'data'
+data_dir = DATA_DIR                          # methods/data, independent of the working directory
 pool_sizes = {'smoke': dict(train=128, val=64),
               'cpu':   dict(train=2000, val=500),
               'paper': dict(train=20000, val=5000)}[run_mode]

@@ -1,4 +1,18 @@
 # -*- coding: utf-8 -*-
+"""
+Central configuration for every experiment script (imported with
+`from simulation_parameters import *`).
+
+Defines the system model (antennas, subcarriers, SNRs, true impaired spacing ant_d), the
+training distribution (angular/range sectors), test sectors, run size (run_mode), the
+learnable model PertNet with its optimisers, and the folders where scene pools and results
+are stored. Importing it seeds the global torch and NumPy generators with SEED.
+
+Seeds: SEED_REPORTED = 10 reproduces the reported baseline runs; SEED_COURSE = 42 is the
+course-checklist seed. Select one without editing this file, e.g. in PowerShell:
+    $env:ISAC_SEED = "42"
+"""
+import os
 import torch
 import torch.nn as nn
 import numpy as np
@@ -8,14 +22,22 @@ import matplotlib.pyplot as plt
 from lib.functions import *
 from lib.learnable_parameters import *
 
-#Fix seed for reproducibility
-torch.manual_seed(10)
-np.random.seed(10)
+#Fix seed for reproducibility (see the module docstring); the env variable ISAC_SEED overrides it
+SEED_REPORTED  = 10                                                         #Seed of the reported baseline runs
+SEED_COURSE    = 42                                                         #Course-checklist seed
+SEED           = int(os.environ.get('ISAC_SEED', SEED_REPORTED))
+torch.manual_seed(SEED)
+np.random.seed(SEED)
+
+######## Folders (absolute, so scripts run from any working directory) ########
+REPO_ROOT      = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+METHODS_DIR    = os.path.join(REPO_ROOT, 'methods')
+DATA_DIR       = os.path.join(METHODS_DIR, 'data')                          #Stored scene pools
 
 ######## Simulation Parameters ########
 #Run size: 'smoke' (~1 min, just checks the code runs), 'cpu' (a few hours on a CPU), 'paper' (full settings, GPU needed)
-run_mode       = 'cpu'
-save_path      = 'results/'                                                 #Directory to save results
+run_mode       = 'paper'
+save_path      = os.path.join(METHODS_DIR, 'results')                       #Directory to save results
 device         = 'cuda' if torch.cuda.is_available() else 'cpu'
 impaired_flag  = True                                                       #True to include impairments, False otherwise
 K              = 64                                                         #Number of antennas
@@ -118,7 +140,7 @@ thresholds_pfa  = torch.linspace(463, 462, 3, device=device)                    
 import os, datetime
 run_timestamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')   #Fixed once per run, so all files of a run share it
 def result_path(file_name):
-    '''Return a unique path results/<file_name>_<run_mode>_<timestamp>.npz, creating the folder if needed.'''
+    '''Return a unique path methods/results/<file_name>_<run_mode>_<timestamp>.npz, creating the folder if needed.'''
     os.makedirs(save_path, exist_ok=True)
     return os.path.join(save_path, f'{file_name}_{run_mode}_{run_timestamp}.npz')
 

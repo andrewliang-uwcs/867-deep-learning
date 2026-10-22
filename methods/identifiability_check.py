@@ -3,17 +3,20 @@
 Sanity checks for lib/scene_pool.py and lib/identifiability.py, plus a first look at the
 identifiability structure (proposal Appendix A, Step 2).
 
-Run from methods/ after generate_scenes.py (it draws a pool itself if none is stored):
-    $env:PYTHONPATH = ".."
-    python identifiability_check.py
+Run from the repository root after generate_scenes.py (it draws a pool itself if none is stored):
+    python methods/identifiability_check.py
 
 Checks 1-4 should all print PASS; they confirm the refactored simulator and the Fisher
-model agree with the original code. Section 5 prints the spectrum and saves it to results/.
+model agree with the original code. Section 5 prints the spectrum and saves it to methods/results/.
 """
 import os
 import sys
 # caution: path[0] is reserved for script path (or '' in REPL)
-sys.path.insert(1, '../lib/')
+# Put the repository root and lib/ on the import path relative to this file, so the
+# script runs from any working directory without setting PYTHONPATH.
+import os
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path[1:1] = [REPO_ROOT, os.path.join(REPO_ROOT, 'lib')]
 from simulation_parameters import *
 from lib.scene_pool import (SimConfig, draw_scenes, load_scenes, subset, num_scenes,
                             precoder_from_sector, draw_symbols, synthesize)
@@ -30,6 +33,7 @@ results = {}
 
 
 def report(name, value, tol):
+    """Print PASS/FAIL for a relative-error check, store the value, return value < tol."""
     ok = value < tol
     print(f'[{"PASS" if ok else "FAIL"}] {name}: {value:.2e} (tol {tol:.0e})')
     results[name] = value
@@ -96,7 +100,7 @@ report('4b translation: shifted array = same measurement times a phase (absorbed
 
 # ---------------------------------------------------------------- 5. pool information spectrum
 n_analysis = {'smoke': 32, 'cpu': 300, 'paper': 1000}[run_mode]
-path = os.path.join('data', f'scenes_{pool_tag}_train.pt')
+path = os.path.join(DATA_DIR, f'scenes_{pool_tag}_train.pt')
 if os.path.exists(path):
     pool, _ = load_scenes(path, device)
     print(f'\nUsing stored pool {path}')
@@ -131,6 +135,7 @@ v_scale, v_trans = scale_direction(d_hat, m), translation_direction(m)
 
 
 def smallest(F, n=4):
+    """The n smallest eigenvalues of F divided by its largest eigenvalue."""
     w = torch.linalg.eigvalsh(F)
     return (w[:n] / w[-1]).numpy()
 

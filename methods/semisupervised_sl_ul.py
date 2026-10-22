@@ -1,7 +1,23 @@
 # -*- coding: utf-8 -*-
+"""
+Sequential semi-supervised learning (SSL): train_it_super supervised iterations followed
+by train_it - train_it_super unsupervised iterations (Mateos-Ramos et al., ICMLCN 2024).
+
+The split is set in lib/simulation_parameters.py through train_it_super. NOTE: as
+committed, train_it_super = train_it, so every iteration is supervised and this script
+reproduces the SL run; set train_it_super (e.g. 1000 of 10000) before running SSL.
+
+Run from the repository root:
+    python methods/semisupervised_sl_ul.py
+Writes methods/results/SSL_SL_UL_<train_it_super>_<run_mode>_<timestamp>.npz.
+"""
 import sys
 # caution: path[0] is reserved for script path (or '' in REPL)
-sys.path.insert(1, '../lib/')
+# Put the repository root and lib/ on the import path relative to this file, so the
+# script runs from any working directory without setting PYTHONPATH.
+import os
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path[1:1] = [REPO_ROOT, os.path.join(REPO_ROOT, 'lib')]
 from simulation_parameters import *
 
 file_name = 'SSL_SL_UL_' + str(train_it_super)

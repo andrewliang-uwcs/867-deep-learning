@@ -1,7 +1,23 @@
 # -*- coding: utf-8 -*-
+"""
+Model-based baseline without learning: the receiver assumes half-wavelength spacing
+(unknown impairments) or the true spacing (impaired_flag = False, known impairments).
+
+Evaluates misdetection probability and position RMSE len(epoch_test_list) times (the
+"uncalibrated reference" averages these repeated evaluations) and sweeps the ISAC
+trade-off beam for the symbol error rate. Settings come from lib/simulation_parameters.py.
+
+Run from the repository root:
+    python methods/baseline.py
+Writes methods/results/baseline_unknown_impairments_<run_mode>_<timestamp>.npz.
+"""
 import sys
 # caution: path[0] is reserved for script path (or '' in REPL)
-sys.path.insert(1, '../lib/')
+# Put the repository root and lib/ on the import path relative to this file, so the
+# script runs from any working directory without setting PYTHONPATH.
+import os
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path[1:1] = [REPO_ROOT, os.path.join(REPO_ROOT, 'lib')]
 from simulation_parameters import *
 
 file_name = 'baseline'

@@ -42,6 +42,8 @@ from lib.scene_pool import (num_scenes, subset, synthesize, run_receiver, steeri
 class ObsModel:
     """Scalar constants of the measurement model as Python floats (float64 maths)."""
     def __init__(self, sim, d_scale=None, r_scale=None):
+        """sim: SimConfig. d_scale/r_scale normalise spacing and range (default lambda/2 and
+        the range resolution c/(2 S Delta_f))."""
         self.K, self.S = int(sim.K), int(sim.S)
         self.lamb = float(sim.lamb)
         self.Delta_f = float(sim.Delta_f)
@@ -74,6 +76,7 @@ def mean_obs_real(p, f, x, m):
 
 
 def pack_params(d, theta, rng, alpha, m):
+    """Normalised parameter vector p = [d/d_scale, theta, r/r_scale, Re alpha, Im alpha] (float64)."""
     d = torch.as_tensor(d, dtype=torch.float64).reshape(-1)
     alpha = complex(alpha)
     return torch.cat([d / m.d_scale,
@@ -191,6 +194,7 @@ def translation_direction(m):
 
 
 def rayleigh(F, v):
+    """Rayleigh quotient v^T F v for a unit vector v (information along direction v)."""
     return float(v @ F @ v)
 
 

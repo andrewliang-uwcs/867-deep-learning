@@ -1,7 +1,25 @@
 # -*- coding: utf-8 -*-
+"""
+Supervised learning (SL) baseline of Mateos-Ramos et al. (ICMLCN 2024).
+
+Trains the learnable antenna spacing (PertNet, lib/learnable_parameters.py) for train_it
+iterations by minimising the target-position MSE on freshly simulated, labelled batches,
+evaluates the misdetection probability and position RMSE at the iterations in
+epoch_test_list, then sweeps the ISAC trade-off beam and measures the symbol error rate.
+All settings come from lib/simulation_parameters.py (run_mode, seed, sizes).
+
+Run from the repository root:
+    python methods/supervised_learning.py
+Writes methods/results/SL_<run_mode>_<timestamp>.npz (pd_inter, rmse_pos_inter,
+num_iterations, loss_super, *_isac, learned_d).
+"""
 import sys
 # caution: path[0] is reserved for script path (or '' in REPL)
-sys.path.insert(1, '../lib/')
+# Put the repository root and lib/ on the import path relative to this file, so the
+# script runs from any working directory without setting PYTHONPATH.
+import os
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path[1:1] = [REPO_ROOT, os.path.join(REPO_ROOT, 'lib')]
 from simulation_parameters import *
 
 file_name = 'SL'

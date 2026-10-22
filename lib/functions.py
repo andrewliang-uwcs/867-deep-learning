@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+"""
+Signal model, training and testing routines from the original SSLISAC code of
+Mateos-Ramos et al. (https://github.com/josemateosramos/SSLISAC): impairment generation,
+steering/precoder construction, sensing and communication channels, the differentiable
+sensing receiver, trainNetwork(), and the sensing/ISAC test functions.
+"""
 import torch
 import torch.nn.functional as F
 import numpy as np

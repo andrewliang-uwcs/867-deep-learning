@@ -1,7 +1,20 @@
 # -*- coding: utf-8 -*-
+"""
+Reverse-order semi-supervised variant: train_it_unsuper unsupervised iterations followed by
+supervised iterations up to train_it. Kept from the original code for completeness; the
+report uses the SL-then-UL order (methods/semisupervised_sl_ul.py).
+
+Run from the repository root:
+    python methods/semisupervised_ul_sl.py
+Writes methods/results/SSL_UL_SL_<run_mode>_<timestamp>.npz.
+"""
 import sys
 # caution: path[0] is reserved for script path (or '' in REPL)
-sys.path.insert(1, '../lib/')
+# Put the repository root and lib/ on the import path relative to this file, so the
+# script runs from any working directory without setting PYTHONPATH.
+import os
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path[1:1] = [REPO_ROOT, os.path.join(REPO_ROOT, 'lib')]
 from simulation_parameters import *
 
 file_name = 'SSL_UL_SL'
