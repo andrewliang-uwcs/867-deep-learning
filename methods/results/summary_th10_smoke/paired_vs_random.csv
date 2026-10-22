@@ -1,0 +1,2 @@
+rule,n_pairs,auc_diff_mean,auc_diff_ci95,final_diff_mean,final_diff_ci95,wins_auc
+weak,1,0.0017389111990415707,nan,0.0015493357626124027,nan,0

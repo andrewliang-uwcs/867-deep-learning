@@ -1,7 +1,22 @@
 # -*- coding: utf-8 -*-
+"""
+Unsupervised learning (UL) baseline of Mateos-Ramos et al. (ICMLCN 2024).
+
+Trains the learnable antenna spacing for train_it iterations by maximising the peak of the
+angle-delay map (no position labels), with the same intermediate sensing tests and final
+ISAC sweep as methods/supervised_learning.py. Settings come from lib/simulation_parameters.py.
+
+Run from the repository root:
+    python methods/unsupervised_learning.py
+Writes methods/results/UL_<run_mode>_<timestamp>.npz.
+"""
 import sys
 # caution: path[0] is reserved for script path (or '' in REPL)
-sys.path.insert(1, '../lib/')
+# Put the repository root and lib/ on the import path relative to this file, so the
+# script runs from any working directory without setting PYTHONPATH.
+import os
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path[1:1] = [REPO_ROOT, os.path.join(REPO_ROOT, 'lib')]
 from simulation_parameters import *
 
 file_name = 'UL'

@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Summarise active-calibration runs (results/active_*.npz from active_calibration.py).
+Summarise active-calibration runs (methods/results/active_*.npz from active_calibration.py).
 
-Run from methods/:
-    python summarize_active.py --since 20261013-165331
-    python summarize_active.py --th 10 --mode cpu --since 20261013-165331 --rules weak full random
+Run from the repository root:
+    python methods/summarize_active.py --since 20261013-165331
+    python methods/summarize_active.py --th 10 --mode cpu --since 20261013-165331 --rules weak full random
 
 --since drops runs saved before that timestamp. USE IT: runs saved before the fix for
 the shared-starting-spacing bug (before 20261013-165331 in your results folder) are
 not valid comparisons. If a (rule, seed) pair was run more than once, the latest is used.
 
-Prints, and writes to results/summary_th<deg>_<mode>/:
+Prints, and writes to methods/results/summary_th<deg>_<mode>/:
   * summary.csv          per-rule mean +/- 95% CI of: mean calibration error over the
                          acquisition rounds (area under the curve / budget range), final
                          calibration error, final median position error, acquisition time
@@ -32,7 +32,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser(description='Summarise active-calibration results')
-parser.add_argument('--results', default='results')
+parser.add_argument('--results', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'results'),
+                    help='folder with active_*.npz (default: methods/results next to this script)')
 parser.add_argument('--mode', default='cpu', help='run_mode in the file names')
 parser.add_argument('--th', default='10', help='theta_mean_max_deg in the file names')
 parser.add_argument('--since', default=None, help='ignore files saved before YYYYMMDD-HHMMSS')
@@ -51,6 +52,7 @@ T95 = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365, 8:
 
 
 def t95(df):
+    """Two-sided 95% Student-t critical value for df degrees of freedom (normal above 30)."""
     if df <= 0:
         return float('nan')
     keys = [k for k in sorted(T95) if k <= df]
@@ -58,6 +60,7 @@ def t95(df):
 
 
 def mean_ci(x):
+    """(mean, 95% CI half-width, n) of a 1-D sample; half-width is NaN for n < 2."""
     x = np.asarray(x, dtype=float)
     n = len(x)
     if n == 0:
@@ -104,16 +107,20 @@ labels = np.array(next(iter(grids)))
 
 
 def stack(rule, field):
+    """(sorted seeds, array seeds x rounds) of a logged field for one rule."""
     seeds = sorted(by_rule[rule])
     return seeds, np.array([by_rule[rule][s][field] for s in seeds], dtype=float)
 
 
 def has(rule, field):
+    """True if every run of the rule logged the field (older runs may lack it)."""
     return all(field in r for r in by_rule[rule].values())
 
 
 # per-run scalar summaries (acquisition rounds = all rounds after round 0)
 def per_run(rule):
+    """Per-seed scalar summaries for one rule (mean/final calibration error, final median
+    position error, SL-step increase, total acquisition time)."""
     seeds, ce = stack(rule, 'calib_err')
     out = dict(seeds=seeds, auc=ce[:, 1:].mean(axis=1), final_ce=ce[:, -1],
                acq=np.array([by_rule[rule][s]['acq_time'].sum() for s in seeds]))
@@ -133,6 +140,7 @@ os.makedirs(out_dir, exist_ok=True)
 
 
 def fmt(m, c):
+    """Format mean +/- CI (mean only if the CI is undefined)."""
     return f'{m:.4f} ± {c:.4f}' if np.isfinite(c) else f'{m:.4f}'
 
 
@@ -183,6 +191,7 @@ plt.rcParams.update({'font.size': 10, 'axes.spines.top': False, 'axes.spines.rig
 
 
 def curve_plot(field, ylabel, fname, title):
+    """Plot a logged field against labels used (mean and 95% CI band per rule) and save it."""
     usable = [r for r in rules if has(r, field)]
     if not usable:
         return

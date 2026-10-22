@@ -4,14 +4,17 @@ Semi-supervised baseline on a STORED scene pool: random initial labels -> superv
 on the labelled scenes -> unsupervised steps on the whole pool. This is the starting point
 (round 0) of the active-calibration loop and checks that lib/scene_pool.py trains.
 
-Run from methods/ after generate_scenes.py:
-    $env:PYTHONPATH = ".."
-    python train_from_pool.py
+Run from the repository root after generate_scenes.py:
+    python methods/train_from_pool.py
 """
 import os
 import sys
 # caution: path[0] is reserved for script path (or '' in REPL)
-sys.path.insert(1, '../lib/')
+# Put the repository root and lib/ on the import path relative to this file, so the
+# script runs from any working directory without setting PYTHONPATH.
+import os
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path[1:1] = [REPO_ROOT, os.path.join(REPO_ROOT, 'lib')]
 from simulation_parameters import *
 from lib.scene_pool import SimConfig, load_scenes, num_scenes, train_steps
 from lib.identifiability import ObsModel, calibration_error, translation_direction
@@ -26,7 +29,7 @@ sim = SimConfig.from_globals(globals())
 m = ObsModel(sim)
 gauge = translation_direction(m).reshape(-1, 1)      # unfixable direction, ignored in the error
 
-path = os.path.join('data', f'scenes_{pool_tag}_train.pt')
+path = os.path.join(DATA_DIR, f'scenes_{pool_tag}_train.pt')
 if not os.path.exists(path):
     sys.exit(f'{path} not found: run generate_scenes.py first')
 pool, meta = load_scenes(path, device)
@@ -66,4 +69,4 @@ print(f'Saving results to {out_file}')
 np.savez(out_file, labelled=labelled.numpy(), loss_sl=np.array(loss_sl), loss_ul=np.array(loss_ul),
          calibration_error=np.array(err), pd=pd, pfa=pfa, rmse_angle=rmse_angle,
          rmse_range=rmse_range, rmse_pos=rmse_pos,
-         learned_d=network.d.detach().cpu().numpy(), pool_file=path)
+         learned_d=network.d.detach().cpu().numpy(), pool_file=os.path.relpath(path, METHODS_DIR))

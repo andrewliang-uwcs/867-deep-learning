@@ -13,12 +13,11 @@ For each (rule, seed):
        -> evaluate on the held-out pool and log
 Every rule gets identical budgets, batch sizes and update counts.
 
-Run from methods/ after generate_scenes.py (same run_mode and theta_mean_max_deg):
-    $env:PYTHONPATH = ".."
-    python active_calibration.py                          # all rules, seed 0
-    python active_calibration.py --rules weak random maxangle --seeds 0 1 2
+Run from the repository root after generate_scenes.py (same run_mode and theta_mean_max_deg):
+    python methods/active_calibration.py                          # all rules, seed 0
+    python methods/active_calibration.py --rules weak random maxangle --seeds 0 1 2
 
-Outputs results/active_<rule>_s<seed>_th<deg>_<run_mode>_<time>.npz per run, and prints a
+Outputs methods/results/active_<rule>_s<seed>_th<deg>_<run_mode>_<time>.npz per run, and prints a
 summary table. Evaluation uses the val pool as held-out data (position RMSE, angle RMSE)
 plus calibration error against the true spacing; the learned spacing is saved at every
 round so the original Pd/SER test functions can be run on any checkpoint later.
@@ -28,7 +27,11 @@ import os
 import sys
 import time
 # caution: path[0] is reserved for script path (or '' in REPL)
-sys.path.insert(1, '../lib/')
+# Put the repository root and lib/ on the import path relative to this file, so the
+# script runs from any working directory without setting PYTHONPATH.
+import os
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path[1:1] = [REPO_ROOT, os.path.join(REPO_ROOT, 'lib')]
 from simulation_parameters import *
 from lib.scene_pool import (SimConfig, load_scenes, num_scenes, subset, train_steps,
                             synthesize, run_receiver)
@@ -60,8 +63,8 @@ m = ObsModel(sim)
 gauge = translation_direction(m).reshape(-1, 1)          # unfixable direction (see identifiability_check)
 Q = complement_basis(gauge, K)
 
-pool_path = os.path.join('data', f'scenes_{pool_tag}_train.pt')
-eval_path = os.path.join('data', f'scenes_{pool_tag}_val.pt')
+pool_path = os.path.join(DATA_DIR, f'scenes_{pool_tag}_train.pt')
+eval_path = os.path.join(DATA_DIR, f'scenes_{pool_tag}_val.pt')
 for p in (pool_path, eval_path):
     if not os.path.exists(p):
         sys.exit(f'{p} not found: run generate_scenes.py first (same run_mode / theta_mean_max_deg)')
@@ -97,6 +100,9 @@ def evaluate(net, scenes, batch=64, eval_seed=12345):
 
 
 def run(rule, seed):
+    """One active-calibration run for an acquisition rule and seed: initialise on the shared
+    initial labels, then alternate acquisition and SL+UL training until the label budget
+    is used. Saves methods/results/active_<rule>_s<seed>_... .npz and returns the log dict."""
     torch.manual_seed(seed)                               # noise / symbols during training
     g_train = torch.Generator().manual_seed(seed)         # mini-batch picks
     g_init = torch.Generator().manual_seed(10_000 + seed) # L0: identical for every rule
@@ -110,6 +116,8 @@ def run(rule, seed):
                train_time=[], learned_d=[], chosen=[], chosen_round=[], chosen_true_theta=[])
 
     def train_and_log(acq_time):
+        """SL steps on the labelled scenes, then UL steps on the whole pool; then evaluate
+        on the held-out pool and append calibration/position metrics to the log."""
         t0 = time.perf_counter()
         train_steps(net, pool, labelled, AL['sl_steps'], AL['batch'], opt_sl, sim,
                     supervised=True, generator=g_train)
@@ -169,7 +177,7 @@ def run(rule, seed):
     suffix = '_noRC' if args.no_redundancy_control and rule in ('weak', 'full') else ''
     out_file = result_path(f'active_{rule}{suffix}_s{seed}_th{theta_mean_max_deg:g}')
     np.savez(out_file, rule=rule, seed=seed, settings=str(AL), lr_scale=lr_scale,
-             pool_file=pool_path, eval_file=eval_path, labelled=np.array(labelled),
+             pool_file=os.path.relpath(pool_path, METHODS_DIR), eval_file=os.path.relpath(eval_path, METHODS_DIR), labelled=np.array(labelled),
              true_d=ant_d.detach().cpu().numpy().reshape(-1),
              **{k: np.array(v) for k, v in log.items()})
     print(f'  saved {out_file}')

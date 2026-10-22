@@ -74,6 +74,7 @@ def draw_scenes(n, sim, theta_mean_min, theta_mean_max, span_min_theta, span_max
     g = torch.Generator(device='cpu').manual_seed(int(seed))
 
     def U(lo, hi):
+        """n draws uniform on [lo, hi), shape (n,1), from the pool's own generator."""
         return torch.rand(n, 1, generator=g) * (float(hi) - float(lo)) + float(lo)
 
     th_mean, th_span = U(theta_mean_min, theta_mean_max), U(span_min_theta, span_max_theta)
@@ -106,6 +107,7 @@ def load_scenes(path, device='cpu'):
 
 
 def num_scenes(scenes):
+    """Number of scenes in a pool dict."""
     return scenes['theta'].shape[0]
 
 
@@ -192,6 +194,7 @@ def position_mse(est_angle, est_range, scenes, criterion=None):
     criterion = criterion or torch.nn.MSELoss()
     mask = scenes['presence'].reshape(-1).bool()
     def xy(r, th):
+        """Polar (range, angle) to Cartesian (x, y), shape (B,2)."""
         return torch.cat((r * torch.cos(th), r * torch.sin(th)), dim=-1)
     return criterion(xy(est_range[mask], est_angle[mask]),
                      xy(scenes['range'][mask], scenes['theta'][mask]))
